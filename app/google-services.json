@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "809534830055",
+    "project_id": "desarrollo-mobil-473c8",
+    "storage_bucket": "desarrollo-mobil-473c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809534830055:android:d4463780065c2a3cc9b942",
+        "android_client_info": {
+          "package_name": "com.example.fitnesscontrol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvRCL8NFwHkcmwYWh8nekzZcwJkkfHGEo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
