@@ -82,16 +82,10 @@ fun HomeScreen(
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                ActionCard(
-                                    title = "Generar con IA",
-                                    icon = Icons.Default.AutoAwesome,
-                                    onClick = onGenerateWithAI,
-                                    modifier = Modifier.weight(1f)
-                                )
                             }
 
                             ActionCard(
-                                title = "Explorar Rutinas",
+                                title = "Explorar Ejercicios",
                                 icon = Icons.Default.Explore,
                                 onClick = onExploreRoutines,
                                 modifier = Modifier.fillMaxWidth()
@@ -266,7 +260,7 @@ fun TodayWorkoutSection(
                 .fillMaxWidth()
         ) {
             Text(
-                text = "Entrenamiento de Hoy",
+                text = "Entrenamiento en curso",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
