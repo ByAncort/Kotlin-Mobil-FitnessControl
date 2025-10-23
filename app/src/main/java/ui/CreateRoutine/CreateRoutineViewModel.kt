@@ -5,14 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import data.ApiExerciseResponse
 import data.Exercise
 import data.RoutineExercise
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -20,11 +19,10 @@ import kotlinx.serialization.json.Json
 
 class CreateRoutineViewModel : ViewModel() {
 
-    // Configuración del cliente HTTP con soporte JSON
     private val client = HttpClient {
         install(ContentNegotiation) {
             json(Json {
-                ignoreUnknownKeys = true  // Ignora campos desconocidos de la API
+                ignoreUnknownKeys = true
                 prettyPrint = false
                 isLenient = true
             })
@@ -46,6 +44,7 @@ class CreateRoutineViewModel : ViewModel() {
 
     // Estados de UI
     var isLoading by mutableStateOf(false)
+    var isSaving by mutableStateOf(false)
     var message by mutableStateOf<String?>(null)
     var showExerciseDialog by mutableStateOf(false)
     var currentExercise by mutableStateOf<Exercise?>(null)
@@ -54,58 +53,156 @@ class CreateRoutineViewModel : ViewModel() {
     var restTime by mutableStateOf("60")
     var showExerciseSelection by mutableStateOf(false)
     var showEmptyState by mutableStateOf(true)
+    var showRoutineForm by mutableStateOf(false)
+
     fun showAddExerciseScreen() {
         showExerciseSelection = true
         showEmptyState = false
     }
+
     fun hideExerciseSelection() {
         showExerciseSelection = false
         showEmptyState = true
     }
+
     fun finishExerciseSelection() {
         showExerciseSelection = false
         showEmptyState = selectedExercises.isEmpty()
+        if (selectedExercises.isNotEmpty()) {
+            showRoutineForm = true
+        }
     }
+
     init {
         loadExercises()
     }
 
-    companion object {
-        private const val BASE_URL = "https://api.api-ninjas.com/v1"
-        private const val API_KEY = "vXO3ReejVqbz3uprfPrG2w==2eIo65wejTCi1UuD"
-    }
-
-    // Carga de ejercicios desde la API
     private suspend fun getAllExercises(): List<Exercise> {
         return try {
-            client.get("$BASE_URL/exercises") {
-                header("X-Api-Key", API_KEY)
-                header(HttpHeaders.Accept, "application/json")
-            }.body<List<Exercise>>()
+            // Llamada a la API
+            val response = client.get("https://musclewiki.com/api-next/exercises/directory?difficulty=1")
+                .body<List<ApiExerciseResponse>>()
+
+            // Convertir al formato simple
+            response.map { apiExercise ->
+                Exercise(
+                    name = apiExercise.name,
+                    type = apiExercise.category.name,
+                    muscle = apiExercise.muscles.firstOrNull()?.name ?: "Unknown",
+                    equipment = apiExercise.category.name,
+                    difficulty = apiExercise.difficulty.name,
+                    instructions = ""
+                )
+            }
         } catch (e: Exception) {
+            println("❌ Error al cargar ejercicios: ${e.message}")
             e.printStackTrace()
-            emptyList()
+            // Retornar ejercicios de ejemplo en caso de error
+            getDemoExercises()
         }
+    }
+
+    private fun getDemoExercises(): List<Exercise> {
+        return listOf(
+            Exercise(
+                name = "Push-ups",
+                type = "Bodyweight",
+                muscle = "Chest",
+                equipment = "None",
+                difficulty = "Beginner",
+                instructions = "Classic push-up exercise"
+            ),
+            Exercise(
+                name = "Squats",
+                type = "Bodyweight",
+                muscle = "Legs",
+                equipment = "None",
+                difficulty = "Beginner",
+                instructions = "Basic squat movement"
+            ),
+            Exercise(
+                name = "Plank",
+                type = "Bodyweight",
+                muscle = "Core",
+                equipment = "None",
+                difficulty = "Beginner",
+                instructions = "Hold plank position"
+            ),
+            Exercise(
+                name = "Lunges",
+                type = "Bodyweight",
+                muscle = "Legs",
+                equipment = "None",
+                difficulty = "Beginner",
+                instructions = "Forward lunges"
+            ),
+            Exercise(
+                name = "Dumbbell Curl",
+                type = "Dumbbell",
+                muscle = "Biceps",
+                equipment = "Dumbbell",
+                difficulty = "Beginner",
+                instructions = "Bicep curls with dumbbells"
+            ),
+            Exercise(
+                name = "Bench Press",
+                type = "Barbell",
+                muscle = "Chest",
+                equipment = "Barbell",
+                difficulty = "Intermediate",
+                instructions = "Flat bench press"
+            ),
+            Exercise(
+                name = "Deadlift",
+                type = "Barbell",
+                muscle = "Back",
+                equipment = "Barbell",
+                difficulty = "Intermediate",
+                instructions = "Conventional deadlift"
+            ),
+            Exercise(
+                name = "Pull-ups",
+                type = "Bodyweight",
+                muscle = "Back",
+                equipment = "Pull-up bar",
+                difficulty = "Intermediate",
+                instructions = "Standard pull-ups"
+            ),
+            Exercise(
+                name = "Shoulder Press",
+                type = "Dumbbell",
+                muscle = "Shoulders",
+                equipment = "Dumbbell",
+                difficulty = "Beginner",
+                instructions = "Overhead shoulder press"
+            ),
+            Exercise(
+                name = "Leg Press",
+                type = "Machine",
+                muscle = "Legs",
+                equipment = "Machine",
+                difficulty = "Beginner",
+                instructions = "Leg press machine"
+            )
+        )
     }
 
     private fun loadExercises() {
         viewModelScope.launch {
             isLoading = true
             try {
-                // Obtener datos reales de la API
                 availableExercises = getAllExercises()
                 filteredExercises = availableExercises
-                delay(1000) // Simular carga visual
+                println("✅ ${availableExercises.size} ejercicios cargados")
             } catch (e: Exception) {
                 e.printStackTrace()
-                message = "Error al cargar ejercicios"
+                message = "Error al cargar ejercicios: ${e.message}"
             } finally {
                 isLoading = false
             }
         }
     }
 
-    // Filtrado de ejercicios según búsqueda y filtros
     fun filterExercises() {
         filteredExercises = availableExercises.filter { exercise ->
             (searchQuery.isEmpty() || exercise.name.contains(searchQuery, ignoreCase = true)) &&
@@ -145,29 +242,46 @@ class CreateRoutineViewModel : ViewModel() {
         selectedExercises = selectedExercises - exercise
     }
 
-    fun saveRoutine(): Boolean {
+    fun saveRoutine(onSuccess: () -> Unit) {
         if (routineName.isBlank()) {
-            message = "el nombre es obligatorio"
-            return false
+            message = "El nombre es obligatorio"
+            return
         }
-        if (routineDuration.isBlank() || routineDuration.toIntOrNull() == null) {
-            message = "la duracion debe ser un numero valido"
-            return false
-        }
+//        if (routineDuration.isBlank() || routineDuration.toIntOrNull() == null) {
+//            message = "La duración debe ser un número válido"
+//            return
+//        }
         if (selectedExercises.isEmpty()) {
-            message = "debe agregar al menos un ejercicio"
-            return false
+            message = "Debe agregar al menos un ejercicio"
+            return
         }
 
-        message = "rutina '$routineName' creada con exito"
+        viewModelScope.launch {
+            isSaving = true
+            try {
+                // Simular guardado (después agregaremos Room)
+                delay(1000)
 
-        // Limpiar campos
-        routineName = ""
-        routineDescription = ""
-        routineDuration = ""
-        selectedExercises = emptyList()
+                println("✅ Rutina guardada: $routineName con ${selectedExercises.size} ejercicios")
+                message = "Rutina '$routineName' creada con éxito"
 
-        return true
+                // Limpiar campos
+                routineName = ""
+                routineDescription = ""
+                routineDuration = ""
+                selectedExercises = emptyList()
+                showRoutineForm = false
+                showEmptyState = true
+
+                delay(500)
+                onSuccess()
+            } catch (e: Exception) {
+                message = "Error al guardar: ${e.message}"
+                e.printStackTrace()
+            } finally {
+                isSaving = false
+            }
+        }
     }
 
     fun getUniqueMuscles(): List<String> {
@@ -180,5 +294,10 @@ class CreateRoutineViewModel : ViewModel() {
 
     fun messageConsumed() {
         message = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        client.close()
     }
 }

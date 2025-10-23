@@ -1,12 +1,15 @@
 package ui.CreateRoutine
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,8 +17,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import data.Exercise
@@ -42,49 +51,82 @@ fun CreateRoutineScreen(
         vm.filterExercises()
     }
 
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Crear Rutina") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Crear Rutina",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = vm.selectedExercises.isNotEmpty() && !vm.showExerciseSelection,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
             ) {
+                ExtendedFloatingActionButton(
+                    onClick = { vm.showRoutineForm = true },
+                    icon = { Icon(Icons.Default.Check, "Finalizar") },
+                    text = { Text("Guardar Rutina") },
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            // Pantalla vacía inicial
+            AnimatedVisibility(
+                visible = vm.showEmptyState,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                EmptyRoutineScreen(vm)
+            }
 
-                // Pantalla vacía inicial
-                AnimatedVisibility(
-                    visible = vm.showEmptyState,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    EmptyRoutineScreen(vm)
-                }
+            // Vista de ejercicios seleccionados
+            AnimatedVisibility(
+                visible = vm.selectedExercises.isNotEmpty() && !vm.showExerciseSelection,
+                enter = fadeIn() + slideInHorizontally(),
+                exit = fadeOut() + slideOutHorizontally()
+            ) {
+                SelectedExercisesView(vm)
+            }
 
-                // Pantalla de selección de ejercicios
-                AnimatedVisibility(
-                    visible = vm.showExerciseSelection,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    ExerciseSelectionContent(vm)
-                }
+            // Pantalla de selección de ejercicios
+            AnimatedVisibility(
+                visible = vm.showExerciseSelection,
+                enter = fadeIn() + slideInHorizontally(initialOffsetX = { it }),
+                exit = fadeOut() + slideOutHorizontally(targetOffsetX = { it })
+            ) {
+                ExerciseSelectionContent(vm)
+            }
 
-                // Dialog para agregar sets/reps
-                if (vm.showExerciseDialog) {
-                    AddExerciseDialog(vm)
-                }
+            // Dialog para agregar sets/reps
+            if (vm.showExerciseDialog) {
+                AddExerciseDialog(vm)
+            }
+
+            // Dialog para guardar rutina
+            if (vm.showRoutineForm) {
+                RoutineFormDialog(vm = vm, onSave = onBack)
             }
         }
     }
@@ -93,28 +135,240 @@ fun CreateRoutineScreen(
 @Composable
 fun EmptyRoutineScreen(vm: CreateRoutineViewModel) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.FitnessCenter,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary
+        // Icono animado
+        var scale by remember { mutableStateOf(1f) }
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val scaleAnimation by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale"
         )
-        Spacer(modifier = Modifier.height(12.dp))
+
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .scale(scaleAnimation)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.surface
+                        )
+                    ),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.FitnessCenter,
+                contentDescription = null,
+                modifier = Modifier.size(70.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         Text(
-            text = "Aún no has agregado ejercicios",
-            style = MaterialTheme.typography.titleMedium,
+            text = "Crea tu rutina perfecta",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { vm.showAddExerciseScreen() }) {
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Comienza agregando ejercicios personalizados\npara alcanzar tus objetivos",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Button(
+            onClick = { vm.showAddExerciseScreen() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Agregar ejercicio")
+            Text("Agregar Ejercicios", style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+@Composable
+fun SelectedExercisesView(vm: CreateRoutineViewModel) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Header con contador
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Rutina en progreso",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${vm.selectedExercises.size} ejercicio${if (vm.selectedExercises.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            FilledTonalButton(
+                onClick = { vm.showAddExerciseScreen() }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Más")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Lista de ejercicios seleccionados
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            itemsIndexed(
+                items = vm.selectedExercises,
+                key = { _, item -> "${item.exercise.name}_${item.sets}_${item.reps}" }
+            ) { index, routineExercise ->
+                SelectedExerciseCard(
+                    index = index,
+                    routineExercise = routineExercise,
+                    onRemove = { vm.removeExerciseFromRoutine(routineExercise) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectedExerciseCard(
+    index: Int,
+    routineExercise: RoutineExercise,
+    onRemove: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Número del ejercicio
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${index + 1}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Información del ejercicio
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = routineExercise.exercise.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ExerciseStatChip(
+                        icon = Icons.Default.FitnessCenter,
+                        label = "${routineExercise.sets} sets"
+                    )
+                    ExerciseStatChip(
+                        icon = Icons.Default.Repeat,
+                        label = "${routineExercise.reps} reps"
+                    )
+                    ExerciseStatChip(
+                        icon = Icons.Default.Timer,
+                        label = "${routineExercise.restTime}s"
+                    )
+                }
+            }
+
+            // Botón eliminar
+            IconButton(
+                onClick = onRemove,
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+            }
+        }
+    }
+}
+
+@Composable
+fun ExerciseStatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -123,40 +377,103 @@ private fun ExerciseSelectionContent(vm: CreateRoutineViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        // Header sticky
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 2.dp,
+            shadowElevation = 4.dp
         ) {
-            Text(
-                "Seleccionar ejercicios",
-                style = MaterialTheme.typography.titleLarge
-            )
-            TextButton(onClick = { vm.finishExerciseSelection() }) {
-                Text("Listo")
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Text(
+                            "Explora ejercicios",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (vm.selectedExercises.isNotEmpty()) {
+                            Text(
+                                "${vm.selectedExercises.size} seleccionado${if (vm.selectedExercises.size != 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { vm.finishExerciseSelection() },
+                        enabled = vm.selectedExercises.isNotEmpty()
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Listo")
+                    }
+                }
+
+                ExerciseFilters(vm)
             }
         }
 
-        ExerciseFilters(vm)
-
+        // Lista de ejercicios
         if (vm.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        "Cargando ejercicios...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         } else {
             if (vm.filteredExercises.isEmpty()) {
-                Text(
-                    "No se encontraron ejercicios",
-                    modifier = Modifier.padding(top = 32.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "No se encontraron ejercicios",
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            "Prueba con otros filtros",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(vm.filteredExercises) { exercise ->
                         AvailableExerciseItem(exercise, vm)
@@ -164,47 +481,82 @@ private fun ExerciseSelectionContent(vm: CreateRoutineViewModel) {
                 }
             }
         }
-
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseFilters(vm: CreateRoutineViewModel) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text("Filtros", style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Buscador
+        OutlinedTextField(
+            value = vm.searchQuery,
+            onValueChange = { vm.searchQuery = it },
+            label = { Text("Buscar ejercicio") },
+            placeholder = { Text("Ej: Press de banca") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (vm.searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { vm.searchQuery = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large
+        )
 
-            OutlinedTextField(
-                value = vm.searchQuery,
-                onValueChange = { vm.searchQuery = it },
-                label = { Text("Buscar ejercicio") },
-                singleLine = true,
-                trailingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
-                modifier = Modifier.fillMaxWidth()
+        // Filtros de músculo y tipo
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterDropdown(
+                label = "Músculo",
+                selected = vm.selectedMuscle ?: "Todos",
+                items = vm.getUniqueMuscles(),
+                onSelect = { vm.selectedMuscle = it },
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.FitnessCenter
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterDropdown(
-                    label = "Músculo",
-                    selected = vm.selectedMuscle ?: "Todos",
-                    items = vm.getUniqueMuscles(),
-                    onSelect = { vm.selectedMuscle = it },
-                    modifier = Modifier.weight(1f)
-                )
+            FilterDropdown(
+                label = "Tipo",
+                selected = vm.selectedType ?: "Todos",
+                items = vm.getUniqueTypes(),
+                onSelect = { vm.selectedType = it },
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Category
+            )
+        }
 
-                FilterDropdown(
-                    label = "Tipo",
-                    selected = vm.selectedType ?: "Todos",
-                    items = vm.getUniqueTypes(),
-                    onSelect = { vm.selectedType = it },
-                    modifier = Modifier.weight(1f)
-                )
+        // Chips de filtros activos
+        if (vm.selectedMuscle != null || vm.selectedType != null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                vm.selectedMuscle?.let { muscle ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { vm.selectedMuscle = null },
+                        label = { Text(muscle) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, contentDescription = "Quitar", modifier = Modifier.size(16.dp))
+                        }
+                    )
+                }
+                vm.selectedType?.let { type ->
+                    FilterChip(
+                        selected = true,
+                        onClick = { vm.selectedType = null },
+                        label = { Text(type) },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, contentDescription = "Quitar", modifier = Modifier.size(16.dp))
+                        }
+                    )
+                }
             }
         }
     }
@@ -217,26 +569,40 @@ fun FilterDropdown(
     selected: String,
     items: List<String>,
     onSelect: (String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
         OutlinedTextField(
             value = selected,
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
-            modifier = modifier.menuAnchor(),
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+            leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(),
+            shape = MaterialTheme.shapes.large
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
             DropdownMenuItem(
                 text = { Text("Todos") },
                 onClick = {
                     onSelect(null)
                     expanded = false
-                }
+                },
+                leadingIcon = { Icon(Icons.Default.SelectAll, contentDescription = null) }
             )
             items.forEach { item ->
                 DropdownMenuItem(
@@ -253,26 +619,74 @@ fun FilterDropdown(
 
 @Composable
 fun AvailableExerciseItem(exercise: Exercise, vm: CreateRoutineViewModel) {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        tonalElevation = 2.dp,
+    val isSelected = vm.selectedExercises.any { it.exercise.name == exercise.name }
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(),
-        onClick = { vm.openExerciseDialog(exercise) }
+        onClick = { vm.openExerciseDialog(exercise) },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                "${exercise.muscle} • ${exercise.type}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                "Dificultad: ${exercise.difficulty} • Equipo: ${exercise.equipment}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = exercise.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(exercise.muscle, style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        },
+                        modifier = Modifier.height(28.dp)
+                    )
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(exercise.difficulty, style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.height(28.dp)
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Seleccionado",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            } else {
+                Icon(
+                    Icons.Default.AddCircleOutline,
+                    contentDescription = "Agregar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     }
 }
@@ -281,56 +695,230 @@ fun AvailableExerciseItem(exercise: Exercise, vm: CreateRoutineViewModel) {
 fun AddExerciseDialog(vm: CreateRoutineViewModel) {
     Dialog(onDismissRequest = { vm.closeExerciseDialog() }) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.9f),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            shape = MaterialTheme.shapes.extraLarge
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text("Agregar ejercicio", style = MaterialTheme.typography.titleLarge)
+                // Header
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Configurar ejercicio",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = { vm.closeExerciseDialog() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                        }
+                    }
 
-                vm.currentExercise?.let { exercise ->
-                    Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+                    vm.currentExercise?.let { exercise ->
+                        Text(
+                            exercise.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            "${exercise.muscle} • ${exercise.type}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
+                HorizontalDivider()
+
+                // Inputs
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = vm.sets,
-                        onValueChange = { vm.sets = it },
+                        onValueChange = { if (it.length <= 2) vm.sets = it },
                         label = { Text("Sets") },
+                        leadingIcon = {
+                            Icon(Icons.Default.FitnessCenter, null, Modifier.size(20.dp))
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium
                     )
                     OutlinedTextField(
                         value = vm.reps,
-                        onValueChange = { vm.reps = it },
+                        onValueChange = { if (it.length <= 3) vm.reps = it },
                         label = { Text("Reps") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Repeat, null, Modifier.size(20.dp))
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = vm.restTime,
-                        onValueChange = { vm.restTime = it },
-                        label = { Text("Descanso (s)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextButton(
+                OutlinedTextField(
+                    value = vm.restTime,
+                    onValueChange = { if (it.length <= 3) vm.restTime = it },
+                    label = { Text("Descanso (segundos)") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Timer, null, Modifier.size(20.dp))
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                // Botones
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
                         onClick = { vm.closeExerciseDialog() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("Cancelar") }
+                    ) {
+                        Text("Cancelar")
+                    }
 
                     Button(
                         onClick = { vm.addExerciseToRoutine() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("Agregar") }
+                    ) {
+                        Icon(Icons.Default.Add, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Agregar")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RoutineFormDialog(vm: CreateRoutineViewModel, onSave: () -> Unit) {
+    Dialog(onDismissRequest = { if (!vm.isSaving) vm.showRoutineForm = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            shape = MaterialTheme.shapes.extraLarge
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Detalles de la rutina",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Completa la información para guardar",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Formulario
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = vm.routineName,
+                        onValueChange = { vm.routineName = it },
+                        label = { Text("Nombre de la rutina *") },
+                        placeholder = { Text("Ej: 60") },
+                        leadingIcon = { Icon(Icons.Default.Schedule, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        enabled = !vm.isSaving,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+
+                    // Info card
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Column {
+                                Text(
+                                    text = "${vm.selectedExercises.size} ejercicios incluidos",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Total de ${vm.selectedExercises.sumOf { it.sets }} series",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // Botones
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = { vm.showRoutineForm = false },
+                        enabled = !vm.isSaving,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancelar")
+                    }
+
+                    Button(
+                        onClick = { vm.saveRoutine(onSave) },
+                        enabled = !vm.isSaving,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (vm.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Default.Check, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Guardar")
+                        }
+                    }
                 }
             }
         }
