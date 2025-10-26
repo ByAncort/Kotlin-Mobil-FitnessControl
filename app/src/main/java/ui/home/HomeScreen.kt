@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel()
 ) {
     val state = vm.uiState.value
+    val context = LocalContext.current
 
     // Animación de rebote INFINITO para el icono
     val infiniteTransition = rememberInfiniteTransition(label = "infinite_bounce")
@@ -45,7 +47,6 @@ fun HomeScreen(
 
     MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
-
             containerColor = MaterialTheme.colorScheme.background
         ) { inner ->
             Box(
@@ -67,6 +68,15 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Mostrar entrenamiento activo SI EXISTE
+                        state.todayWorkout?.let { workout ->
+                            TodayWorkoutSection(
+                                workout = workout,
+                                onStartWorkout = { onRoutineSelected(workout.routineId) },
+                                onFinishWorkout = { vm.finishWorkout() }
+                            )
+                        }
+
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -81,7 +91,6 @@ fun HomeScreen(
                                     onClick = onCreateRoutine,
                                     modifier = Modifier.weight(1f)
                                 )
-
                             }
 
                             ActionCard(
@@ -127,18 +136,19 @@ fun HomeScreen(
                                     items(state.myRoutines.take(3)) { routine ->
                                         RoutineItem(
                                             routine = routine,
-                                            onClick = { onRoutineSelected(routine.id) }
+                                            onClick = {
+                                                // Iniciar entrenamiento al hacer clic
+                                                vm.startWorkout(
+                                                    routineId = routine.id,
+                                                    routineName = routine.name,
+                                                    exerciseCount = routine.exerciseCount,
+                                                    duration = routine.duration
+                                                )
+                                            }
                                         )
                                     }
                                 }
                             }
-                        }
-
-                        state.todayWorkout?.let { workout ->
-                            TodayWorkoutSection(
-                                workout = workout,
-                                onStartWorkout = { onRoutineSelected(workout.routineId) }
-                            )
                         }
                     }
                 }
@@ -233,9 +243,9 @@ fun RoutineItem(
             }
 
             Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Ver rutina",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Iniciar",
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -244,11 +254,11 @@ fun RoutineItem(
 @Composable
 fun TodayWorkoutSection(
     workout: TodayWorkoutUiState,
-    onStartWorkout: () -> Unit
+    onStartWorkout: () -> Unit,
+    onFinishWorkout: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
@@ -259,12 +269,26 @@ fun TodayWorkoutSection(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            Text(
-                text = "Entrenamiento en curso",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🏋️ Entrenamiento en curso",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+                IconButton(onClick = onFinishWorkout) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Finalizar",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -285,9 +309,14 @@ fun TodayWorkoutSection(
 
             Button(
                 onClick = onStartWorkout,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             ) {
-                Text("Comenzar Entrenamiento")
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Continuar Entrenamiento")
             }
         }
     }
@@ -298,8 +327,7 @@ fun EmptyRoutineCard(
     onCreateRoutine: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         )

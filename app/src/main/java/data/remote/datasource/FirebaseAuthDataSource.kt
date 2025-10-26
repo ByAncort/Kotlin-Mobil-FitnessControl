@@ -1,4 +1,4 @@
-package repository.Auth
+package data.remote.datasource
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser

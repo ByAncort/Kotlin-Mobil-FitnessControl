@@ -1,6 +1,7 @@
 package data
 
 import androidx.room.TypeConverter
+import data.model.RoutineExercise
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

@@ -6,13 +6,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import data.ApiExerciseResponse
+import data.remote.model.ApiExerciseResponse
 import data.AppDatabase
-import data.Exercise
-import data.RoutineExercise
+import data.remote.model.Exercise
+import data.model.RoutineExercise
 
-import data.room.CachedExerciseEntity
-import data.room.DraftRoutineEntity
+import data.local.entity.CachedExerciseEntity
+import data.local.entity.DraftRoutineEntity
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation

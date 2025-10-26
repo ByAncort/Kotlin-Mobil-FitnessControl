@@ -1,6 +1,5 @@
 package ui.profile
 
-import Model.User
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,8 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import repository.Auth.AuthRepository
-import repository.profile.ProfileRepository
+import data.repository.AuthRepository
+import data.repository.ProfileRepository
 
 data class EditProfileUiState(
     val name: String = "",

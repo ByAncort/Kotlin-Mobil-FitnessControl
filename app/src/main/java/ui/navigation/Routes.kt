@@ -1,4 +1,4 @@
-package ui
+package ui.navigation
 
 sealed class Route(val path: String) {
     data object Register : Route("registrarse")

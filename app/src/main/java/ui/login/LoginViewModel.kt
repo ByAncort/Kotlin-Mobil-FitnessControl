@@ -1,7 +1,7 @@
 package ui.login
 
-import Model.User
-import repository.Auth.AuthRepository
+import data.model.User
+import data.repository.AuthRepository
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

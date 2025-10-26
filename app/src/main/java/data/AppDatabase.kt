@@ -4,21 +4,23 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import data.room.CachedExerciseDao
-import data.room.CachedExerciseEntity
-import data.room.DraftRoutineDao
-import data.room.DraftRoutineEntity
+import data.local.dao.ActiveWorkoutDao
+import data.local.entity.ActiveWorkoutEntity
+import data.local.dao.CachedExerciseDao
+import data.local.entity.CachedExerciseEntity
+import data.local.dao.DraftRoutineDao
+import data.local.entity.DraftRoutineEntity
 
 @Database(
-    entities = [DraftRoutineEntity::class, CachedExerciseEntity::class],
-    version = 1,
+    entities = [DraftRoutineEntity::class, CachedExerciseEntity::class, ActiveWorkoutEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun draftRoutineDao(): DraftRoutineDao
     abstract fun cachedExerciseDao(): CachedExerciseDao
-
+    abstract fun activeWorkoutDao(): ActiveWorkoutDao
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

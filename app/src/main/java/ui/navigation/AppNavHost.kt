@@ -1,20 +1,17 @@
-package ui
+package ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.fitnesscontrol.FitnessApplication
-import com.example.fitnesscontrol.navigation.navBarItems
-import com.example.fitnesscontrol.setting.SettingsScreen
+import ui.setting.SettingsScreen
 import ui.CreateRoutine.CreateRoutineScreen
 import ui.CreateRoutine.CreateRoutineViewModel
 import ui.home.HomeScreen

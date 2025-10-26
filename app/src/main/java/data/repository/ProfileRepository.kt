@@ -1,7 +1,9 @@
-package repository.profile
+package data.repository
 
 import android.net.Uri
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import ui.profile.UserProfile
@@ -50,11 +52,11 @@ class ProfileRepository {
                 "weight" to profile.weight,
                 "height" to profile.height,
                 "photoUri" to profile.photoUri,
-                "updatedAt" to com.google.firebase.Timestamp.now()
+                "updatedAt" to Timestamp.now()
             )
 
             usersCollection.document(profile.uid)
-                .set(data, com.google.firebase.firestore.SetOptions.merge())
+                .set(data, SetOptions.merge())
                 .await()
 
             true
@@ -113,8 +115,8 @@ class ProfileRepository {
             val profile = hashMapOf(
                 "email" to email,
                 "displayName" to displayName,
-                "createdAt" to com.google.firebase.Timestamp.now(),
-                "updatedAt" to com.google.firebase.Timestamp.now()
+                "createdAt" to Timestamp.now(),
+                "updatedAt" to Timestamp.now()
             )
 
             usersCollection.document(uid).set(profile).await()

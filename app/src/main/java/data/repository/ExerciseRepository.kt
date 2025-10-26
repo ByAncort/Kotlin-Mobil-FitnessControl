@@ -1,8 +1,7 @@
-package repository
+package data.repository
 
-import data.Exercise
-import data.Routine
-import service.ExerciseService
+import data.remote.model.Exercise
+import data.remote.ExerciseService
 
 class ExerciseRepository(private val exerciseService: ExerciseService) {
 

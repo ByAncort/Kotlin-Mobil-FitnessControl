@@ -1,4 +1,4 @@
-package data.room
+package data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -7,8 +7,8 @@ import androidx.room.TypeConverters
 import com.google.firebase.crashlytics.buildtools.reloc.com.google.common.reflect.TypeToken
 import com.google.gson.Gson
 
-import data.Exercise
-import data.RoutineExercise
+import data.remote.model.Exercise
+import data.model.RoutineExercise
 
 // Entidad para guardar el borrador de la rutina
 @Entity(tableName = "draft_routine")

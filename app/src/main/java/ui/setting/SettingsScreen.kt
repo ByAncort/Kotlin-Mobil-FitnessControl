@@ -1,4 +1,4 @@
-package com.example.fitnesscontrol.setting
+package ui.setting
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -33,12 +34,7 @@ fun SettingsScreen(onLogout: () -> Unit) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        SettingItem(
-            icon = Icons.Filled.Person,
-            title = "Información personal",
-            subtitle = "Edita tu perfil",
-            onClick = { /* Navegar a editar perfil */ }
-        )
+
 
         SettingItem(
             icon = Icons.Filled.Lock,
@@ -57,12 +53,7 @@ fun SettingsScreen(onLogout: () -> Unit) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        SettingItem(
-            icon = Icons.Filled.Notifications,
-            title = "Notificaciones",
-            subtitle = "Gestiona las notificaciones",
-            onClick = { /* Navegar a notificaciones */ }
-        )
+
 
         SettingItem(
             icon = Icons.Filled.Info,
@@ -118,7 +109,7 @@ fun SettingsScreen(onLogout: () -> Unit) {
 
 @Composable
 fun SettingItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit

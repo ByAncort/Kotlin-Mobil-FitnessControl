@@ -1,7 +1,7 @@
-package repository.Auth
+package data.repository
 
-import Model.User
-import repository.profile.ProfileRepository
+import data.model.User
+import data.remote.datasource.FirebaseAuthDataSource
 
 class AuthRepository(
     private val ds: FirebaseAuthDataSource = FirebaseAuthDataSource(),

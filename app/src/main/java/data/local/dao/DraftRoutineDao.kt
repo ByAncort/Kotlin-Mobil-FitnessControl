@@ -1,6 +1,8 @@
-package data.room
+package data.local.dao
 
 import androidx.room.*
+import data.local.entity.CachedExerciseEntity
+import data.local.entity.DraftRoutineEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

@@ -1,6 +1,6 @@
-package service
+package data.remote
 
-import data.Exercise
+import data.remote.model.Exercise
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
