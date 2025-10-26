@@ -10,6 +10,7 @@ sealed class Route(val path: String) {
     data object MyRoutines : Route("my_routines")
 
     object Profile : Route("profile")
+    object EditProfile : Route("edit_profile")
     object Settings : Route("settings")
     data object RoutineDetail : Route("routine_detail") {
         fun createRoute(routineId: String) = "$path/$routineId"
