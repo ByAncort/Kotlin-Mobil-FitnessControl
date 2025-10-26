@@ -1,18 +1,28 @@
 package repository.Auth
 
 import Model.User
+import repository.profile.ProfileRepository
 
 class AuthRepository(
-    private val ds: FirebaseAuthDataSource = FirebaseAuthDataSource()
+    private val ds: FirebaseAuthDataSource = FirebaseAuthDataSource(),
+    private val profileRepo: ProfileRepository = ProfileRepository()
 ) {
     suspend fun login(email: String, pass: String): User? {
         val fu = ds.signIn(email, pass) ?: return null
         return User(uid = fu.uid, email = fu.email)
     }
 
-    suspend fun signUp(email: String, pass: String): User? {
+    suspend fun signUp(email: String, pass: String, displayName: String? = null): User? {
         val fu = ds.signUp(email, pass) ?: return null
-        return User(uid = fu.uid, email = fu.email)
+
+        // Crear perfil en Firestore
+        profileRepo.createUserProfile(
+            uid = fu.uid,
+            email = fu.email,
+            displayName = displayName
+        )
+
+        return User(uid = fu.uid, email = fu.email, displayName = displayName)
     }
 
     suspend fun sendPasswordReset(email: String): Boolean {
@@ -20,5 +30,6 @@ class AuthRepository(
     }
 
     fun logout() = ds.signOut()
+
     fun currentUser(): User? = ds.currentUser()?.let { User(it.uid, it.email) }
 }
