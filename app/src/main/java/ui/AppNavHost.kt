@@ -20,6 +20,7 @@ import ui.CreateRoutine.CreateRoutineViewModel
 import ui.home.HomeScreen
 import ui.home.HomeViewModel
 import ui.login.LoginScreen
+import ui.profile.EditProfileScreen
 import ui.profile.ProfileScreen
 import ui.register.RegisterScreen
 
@@ -120,7 +121,11 @@ fun AppNavHost() {
             }
 
             composable(Route.Profile.path) {
-                ProfileScreen()
+                ProfileScreen(
+                    onEditprofile = {
+                        nav.navigate(Route.EditProfile.path)
+                    }
+                )
             }
 
             composable(Route.Settings.path) {
@@ -129,6 +134,14 @@ fun AppNavHost() {
                         nav.navigate(Route.Login.path) {
                             popUpTo(0) { inclusive = true }
                         }
+                    }
+                )
+            }
+            composable(Route.EditProfile.path) {
+                EditProfileScreen(
+                    onBack = { nav.popBackStack() },
+                    onSaveSuccess = {
+                        nav.popBackStack()
                     }
                 )
             }
