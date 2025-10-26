@@ -64,7 +64,7 @@ fun LoginScreen(
         }
     }
 
-    MaterialTheme(colorScheme = darkColorScheme()) {
+    MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             containerColor = MaterialTheme.colorScheme.background
