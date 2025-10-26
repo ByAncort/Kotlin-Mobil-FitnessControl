@@ -50,7 +50,7 @@ fun CreateRoutineScreen(
     LaunchedEffect(vm.searchQuery, vm.selectedMuscle, vm.selectedType) {
         vm.filterExercises()
     }
-
+    MaterialTheme(colorScheme = lightColorScheme()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -130,6 +130,7 @@ fun CreateRoutineScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -382,8 +383,8 @@ private fun ExerciseSelectionContent(vm: CreateRoutineViewModel) {
         // Header sticky
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 2.dp,
-            shadowElevation = 4.dp
+//            tonalElevation = 2.dp,
+//            shadowElevation = 4.dp
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),

@@ -7,5 +7,4 @@ import data.RoutineRepository
 class FitnessApplication : Application() {
 
     val database by lazy { AppDatabase.getDatabase(this) }
-    val repository by lazy { RoutineRepository(database.routineDao()) }
 }

@@ -1,13 +1,18 @@
 package ui.CreateRoutine
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import data.ApiExerciseResponse
+import data.AppDatabase
 import data.Exercise
 import data.RoutineExercise
+
+import data.room.CachedExerciseEntity
+import data.room.DraftRoutineEntity
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -17,7 +22,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-class CreateRoutineViewModel : ViewModel() {
+class CreateRoutineViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val database = AppDatabase.getDatabase(application)
+    private val draftDao = database.draftRoutineDao()
+    private val cacheDao = database.cachedExerciseDao()
 
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -32,12 +41,17 @@ class CreateRoutineViewModel : ViewModel() {
     // Campos de la rutina
     var routineName by mutableStateOf("")
     var routineDescription by mutableStateOf("")
+        private set
     var routineDuration by mutableStateOf("")
+        private set
 
     // Estados para la selección de ejercicios
     var availableExercises by mutableStateOf<List<Exercise>>(emptyList())
+        private set
     var selectedExercises by mutableStateOf<List<RoutineExercise>>(emptyList())
+        private set
     var filteredExercises by mutableStateOf<List<Exercise>>(emptyList())
+        private set
     var searchQuery by mutableStateOf("")
     var selectedMuscle by mutableStateOf<String?>(null)
     var selectedType by mutableStateOf<String?>(null)
@@ -54,6 +68,104 @@ class CreateRoutineViewModel : ViewModel() {
     var showExerciseSelection by mutableStateOf(false)
     var showEmptyState by mutableStateOf(true)
     var showRoutineForm by mutableStateOf(false)
+    var hasDraftLoaded by mutableStateOf(false)
+
+    init {
+        loadDraftAndExercises()
+    }
+
+    private fun loadDraftAndExercises() {
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                // Cargar borrador si existe
+                val draft = draftDao.getDraftOnce()
+                if (draft != null) {
+                    routineName = draft.routineName
+                    routineDescription = draft.routineDescription
+                    routineDuration = draft.routineDuration
+                    selectedExercises = draft.selectedExercises
+
+                    if (selectedExercises.isNotEmpty()) {
+                        showEmptyState = false
+                        showRoutineForm = true
+                    }
+
+                    println("✅ Borrador cargado: ${selectedExercises.size} ejercicios")
+                }
+                hasDraftLoaded = true
+
+                // Intentar cargar ejercicios desde caché primero
+                val cachedCount = cacheDao.getCacheCount()
+                if (cachedCount > 0) {
+                    val cached = cacheDao.getAllCachedExercises()
+                    availableExercises = cached.map { it.exercise }
+                    filteredExercises = availableExercises
+                    println("✅ ${availableExercises.size} ejercicios cargados desde caché")
+                } else {
+                    // Si no hay caché, cargar desde API
+                    loadExercisesFromApi()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                message = "Error al cargar datos: ${e.message}"
+                loadExercisesFromApi() // Fallback
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    private suspend fun loadExercisesFromApi() {
+        try {
+            availableExercises = getAllExercises()
+            filteredExercises = availableExercises
+
+            // Cachear ejercicios
+            val cachedExercises = availableExercises.map {
+                CachedExerciseEntity(exercise = it)
+            }
+            cacheDao.cacheExercises(cachedExercises)
+
+            println("✅ ${availableExercises.size} ejercicios cargados desde API y cacheados")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            message = "Error al cargar ejercicios: ${e.message}"
+        }
+    }
+
+    // Auto-guardar cuando cambian los datos
+    private fun autosaveDraft() {
+        viewModelScope.launch {
+            try {
+                val draft = DraftRoutineEntity(
+                    routineName = routineName,
+                    routineDescription = routineDescription,
+                    routineDuration = routineDuration,
+                    selectedExercises = selectedExercises
+                )
+                draftDao.saveDraft(draft)
+                println("💾 Borrador auto-guardado")
+            } catch (e: Exception) {
+                println("❌ Error al auto-guardar: ${e.message}")
+            }
+        }
+    }
+
+    fun updateRoutineName(name: String) {
+        routineName = name
+        if (hasDraftLoaded) autosaveDraft()
+    }
+
+    fun updateRoutineDescription(desc: String) {
+        routineDescription = desc
+        if (hasDraftLoaded) autosaveDraft()
+    }
+
+    fun updateRoutineDuration(duration: String) {
+        routineDuration = duration
+        if (hasDraftLoaded) autosaveDraft()
+    }
 
     fun showAddExerciseScreen() {
         showExerciseSelection = true
@@ -62,7 +174,7 @@ class CreateRoutineViewModel : ViewModel() {
 
     fun hideExerciseSelection() {
         showExerciseSelection = false
-        showEmptyState = true
+        showEmptyState = selectedExercises.isEmpty()
     }
 
     fun finishExerciseSelection() {
@@ -73,17 +185,11 @@ class CreateRoutineViewModel : ViewModel() {
         }
     }
 
-    init {
-        loadExercises()
-    }
-
     private suspend fun getAllExercises(): List<Exercise> {
         return try {
-            // Llamada a la API
-            val response = client.get("https://musclewiki.com/api-next/exercises/directory?difficulty=1")
+            val response = client.get("https://musclewiki.com/api-next/exercises/directory?difficulty=4%2C3%2C2%2C1")
                 .body<List<ApiExerciseResponse>>()
 
-            // Convertir al formato simple
             response.map { apiExercise ->
                 Exercise(
                     name = apiExercise.name,
@@ -96,111 +202,23 @@ class CreateRoutineViewModel : ViewModel() {
             }
         } catch (e: Exception) {
             println("❌ Error al cargar ejercicios: ${e.message}")
-            e.printStackTrace()
-            // Retornar ejercicios de ejemplo en caso de error
             getDemoExercises()
         }
     }
 
     private fun getDemoExercises(): List<Exercise> {
         return listOf(
-            Exercise(
-                name = "Push-ups",
-                type = "Bodyweight",
-                muscle = "Chest",
-                equipment = "None",
-                difficulty = "Beginner",
-                instructions = "Classic push-up exercise"
-            ),
-            Exercise(
-                name = "Squats",
-                type = "Bodyweight",
-                muscle = "Legs",
-                equipment = "None",
-                difficulty = "Beginner",
-                instructions = "Basic squat movement"
-            ),
-            Exercise(
-                name = "Plank",
-                type = "Bodyweight",
-                muscle = "Core",
-                equipment = "None",
-                difficulty = "Beginner",
-                instructions = "Hold plank position"
-            ),
-            Exercise(
-                name = "Lunges",
-                type = "Bodyweight",
-                muscle = "Legs",
-                equipment = "None",
-                difficulty = "Beginner",
-                instructions = "Forward lunges"
-            ),
-            Exercise(
-                name = "Dumbbell Curl",
-                type = "Dumbbell",
-                muscle = "Biceps",
-                equipment = "Dumbbell",
-                difficulty = "Beginner",
-                instructions = "Bicep curls with dumbbells"
-            ),
-            Exercise(
-                name = "Bench Press",
-                type = "Barbell",
-                muscle = "Chest",
-                equipment = "Barbell",
-                difficulty = "Intermediate",
-                instructions = "Flat bench press"
-            ),
-            Exercise(
-                name = "Deadlift",
-                type = "Barbell",
-                muscle = "Back",
-                equipment = "Barbell",
-                difficulty = "Intermediate",
-                instructions = "Conventional deadlift"
-            ),
-            Exercise(
-                name = "Pull-ups",
-                type = "Bodyweight",
-                muscle = "Back",
-                equipment = "Pull-up bar",
-                difficulty = "Intermediate",
-                instructions = "Standard pull-ups"
-            ),
-            Exercise(
-                name = "Shoulder Press",
-                type = "Dumbbell",
-                muscle = "Shoulders",
-                equipment = "Dumbbell",
-                difficulty = "Beginner",
-                instructions = "Overhead shoulder press"
-            ),
-            Exercise(
-                name = "Leg Press",
-                type = "Machine",
-                muscle = "Legs",
-                equipment = "Machine",
-                difficulty = "Beginner",
-                instructions = "Leg press machine"
-            )
+            Exercise("Push-ups", "Bodyweight", "Chest", "None", "Beginner", "Classic push-up"),
+            Exercise("Squats", "Bodyweight", "Legs", "None", "Beginner", "Basic squat"),
+            Exercise("Plank", "Bodyweight", "Core", "None", "Beginner", "Hold plank"),
+            Exercise("Lunges", "Bodyweight", "Legs", "None", "Beginner", "Forward lunges"),
+            Exercise("Dumbbell Curl", "Dumbbell", "Biceps", "Dumbbell", "Beginner", "Bicep curls"),
+            Exercise("Bench Press", "Barbell", "Chest", "Barbell", "Intermediate", "Flat bench"),
+            Exercise("Deadlift", "Barbell", "Back", "Barbell", "Intermediate", "Deadlift"),
+            Exercise("Pull-ups", "Bodyweight", "Back", "Pull-up bar", "Intermediate", "Pull-ups"),
+            Exercise("Shoulder Press", "Dumbbell", "Shoulders", "Dumbbell", "Beginner", "Overhead press"),
+            Exercise("Leg Press", "Machine", "Legs", "Machine", "Beginner", "Leg press")
         )
-    }
-
-    private fun loadExercises() {
-        viewModelScope.launch {
-            isLoading = true
-            try {
-                availableExercises = getAllExercises()
-                filteredExercises = availableExercises
-                println("✅ ${availableExercises.size} ejercicios cargados")
-            } catch (e: Exception) {
-                e.printStackTrace()
-                message = "Error al cargar ejercicios: ${e.message}"
-            } finally {
-                isLoading = false
-            }
-        }
     }
 
     fun filterExercises() {
@@ -235,11 +253,17 @@ class CreateRoutineViewModel : ViewModel() {
             selectedExercises = selectedExercises + routineExercise
             closeExerciseDialog()
             message = "Ejercicio ${exercise.name} agregado"
+
+            // Auto-guardar
+            if (hasDraftLoaded) autosaveDraft()
         }
     }
 
     fun removeExerciseFromRoutine(exercise: RoutineExercise) {
         selectedExercises = selectedExercises - exercise
+
+        // Auto-guardar
+        if (hasDraftLoaded) autosaveDraft()
     }
 
     fun saveRoutine(onSuccess: () -> Unit) {
@@ -247,10 +271,6 @@ class CreateRoutineViewModel : ViewModel() {
             message = "El nombre es obligatorio"
             return
         }
-//        if (routineDuration.isBlank() || routineDuration.toIntOrNull() == null) {
-//            message = "La duración debe ser un número válido"
-//            return
-//        }
         if (selectedExercises.isEmpty()) {
             message = "Debe agregar al menos un ejercicio"
             return
@@ -259,11 +279,30 @@ class CreateRoutineViewModel : ViewModel() {
         viewModelScope.launch {
             isSaving = true
             try {
-                // Simular guardado (después agregaremos Room)
+                // Simular guardado (después implementarás el guardado real)
                 delay(1000)
 
                 println("✅ Rutina guardada: $routineName con ${selectedExercises.size} ejercicios")
                 message = "Rutina '$routineName' creada con éxito"
+
+                // Limpiar borrador
+                clearDraft()
+
+                delay(500)
+                onSuccess()
+            } catch (e: Exception) {
+                message = "Error al guardar: ${e.message}"
+                e.printStackTrace()
+            } finally {
+                isSaving = false
+            }
+        }
+    }
+
+    fun clearDraft() {
+        viewModelScope.launch {
+            try {
+                draftDao.clearDraft()
 
                 // Limpiar campos
                 routineName = ""
@@ -273,13 +312,9 @@ class CreateRoutineViewModel : ViewModel() {
                 showRoutineForm = false
                 showEmptyState = true
 
-                delay(500)
-                onSuccess()
+                println("🗑️ Borrador eliminado")
             } catch (e: Exception) {
-                message = "Error al guardar: ${e.message}"
-                e.printStackTrace()
-            } finally {
-                isSaving = false
+                println("❌ Error al limpiar borrador: ${e.message}")
             }
         }
     }

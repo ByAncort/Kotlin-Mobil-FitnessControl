@@ -43,7 +43,7 @@ fun HomeScreen(
         label = "fast_bounce"
     )
 
-    MaterialTheme(colorScheme = darkColorScheme()) {
+    MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
 
             containerColor = MaterialTheme.colorScheme.background

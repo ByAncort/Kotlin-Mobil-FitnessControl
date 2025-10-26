@@ -4,17 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
+import data.room.CachedExerciseDao
+import data.room.CachedExerciseEntity
+import data.room.DraftRoutineDao
+import data.room.DraftRoutineEntity
 
 @Database(
-    entities = [Routine::class],
+    entities = [DraftRoutineEntity::class, CachedExerciseEntity::class],
     version = 1,
     exportSchema = false
 )
-@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun routineDao(): RoutineDao
+    abstract fun draftRoutineDao(): DraftRoutineDao
+    abstract fun cachedExerciseDao(): CachedExerciseDao
 
     companion object {
         @Volatile
@@ -25,7 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "fitness_database"
+                    "gym_routine_database"
                 )
                     .fallbackToDestructiveMigration()
                     .build()
