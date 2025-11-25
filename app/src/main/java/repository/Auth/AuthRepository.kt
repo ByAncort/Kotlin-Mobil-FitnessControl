@@ -1,6 +1,6 @@
 package repository.Auth
 
-import Model.User
+import model.User
 import repository.profile.ProfileRepository
 
 class AuthRepository(

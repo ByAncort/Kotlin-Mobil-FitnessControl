@@ -8,11 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,20 +35,18 @@ fun LoginScreen(
     val state by vm.ui.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Animación de rebote INFINITO
+    // Animación de rebote infinito
     val infiniteTransition = rememberInfiniteTransition(label = "infinite_bounce")
-    val bounceScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+    val scaleAnimation by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 800,
-                easing = FastOutSlowInEasing
-            ),
+            animation = tween(1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "fast_bounce"
+        label = "scale"
     )
+
     LaunchedEffect(state.loggedIn) {
         if (state.loggedIn) onLoginSuccess()
     }
@@ -82,17 +76,7 @@ fun LoginScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 🔹 Icono con animación de rebote INFINITO
-                    val scaleAnimation by infiniteTransition.animateFloat(
-                        initialValue = 1f,
-                        targetValue = 1.5f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1000, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "scale"
-                    )
-
+                    // Icono con animación
                     Box(
                         modifier = Modifier
                             .size(140.dp)
@@ -116,7 +100,6 @@ fun LoginScreen(
                         )
                     }
 
-
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
@@ -125,37 +108,31 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
+                    // Campo de username
                     OutlinedTextField(
-                        value = state.email,
-                        onValueChange = vm::onEmailChange,
-                        label = { Text("Correo electrónico") },
-                        placeholder = { Text("ejemplo@correo.com") },
+                        value = state.username,
+                        onValueChange = vm::onUsernameChange,
+                        label = { Text("Nombre de usuario") },
+                        placeholder = { Text("Ingresa tu usuario") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
+                            keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onNext = { /* Acción al presionar siguiente, por ejemplo, mover el foco */ }
                         ),
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Email,
-                                contentDescription = "Icono de correo"
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Icono de usuario"
                             )
                         },
-                        isError = state.email.isNotEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches(),
-                        supportingText = {
-                            if (state.email.isNotEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches()) {
-                                Text("Correo inválido", color = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !state.loading
                     )
 
+                    // Campo de contraseña
                     var passwordVisible by remember { mutableStateOf(false) }
 
                     OutlinedTextField(
@@ -172,7 +149,7 @@ fun LoginScreen(
                             imeAction = ImeAction.Done
                         ),
                         keyboardActions = KeyboardActions(
-                            onDone = { /* Acción al presionar “Done”, por ejemplo, enviar formulario */ }
+                            onDone = { vm.submit() }
                         ),
                         leadingIcon = {
                             Icon(
@@ -181,37 +158,68 @@ fun LoginScreen(
                             )
                         },
                         trailingIcon = {
-                            val visibilityIcon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                            val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                            val visibilityIcon = if (passwordVisible)
+                                Icons.Default.Visibility
+                            else
+                                Icons.Default.VisibilityOff
+                            val description = if (passwordVisible)
+                                "Ocultar contraseña"
+                            else
+                                "Mostrar contraseña"
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(imageVector = visibilityIcon, contentDescription = description)
                             }
                         },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible)
+                            VisualTransformation.None
+                        else
+                            PasswordVisualTransformation(),
                         isError = state.password.isNotEmpty() && state.password.length < 6,
                         supportingText = {
                             if (state.password.isNotEmpty() && state.password.length < 6) {
-                                Text("La contraseña debe tener al menos 6 caracteres", color = MaterialTheme.colorScheme.error)
+                                Text(
+                                    "La contraseña debe tener al menos 6 caracteres",
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
                         },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !state.loading
                     )
 
-
+                    // Mensaje de error
                     if (state.error != null) {
-                        Text(
-                            text = state.error!!,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            textAlign = TextAlign.Center
-                        )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = state.error!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
 
+                    Spacer(modifier = Modifier.height(8.dp))
 
+                    // Botón de ingresar
                     Button(
                         onClick = vm::submit,
                         enabled = !state.loading,
@@ -228,36 +236,30 @@ fun LoginScreen(
                                 CircularProgressIndicator(
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     strokeWidth = 2.dp,
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .padding(end = 8.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text("Ingresando...")
                             }
                         } else {
-                            Text("Ingresar")
+                            Text("Ingresar", fontSize = 16.sp)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Botón de crear cuenta
                     TextButton(
                         onClick = onRegister,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        enabled = !state.loading
                     ) {
                         Text(
-                            "Crear cuenta",
+                            "¿No tienes cuenta? Regístrate",
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                }
-
-                if (state.loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
         }

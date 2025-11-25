@@ -1,6 +1,5 @@
 package ui.profile
 
-import Model.User
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

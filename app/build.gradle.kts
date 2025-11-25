@@ -76,6 +76,9 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:2.3.5")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.5")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+    // Retrofit para peticiones HTTP
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
 
     implementation("com.google.firebase:firebase-firestore-ktx")

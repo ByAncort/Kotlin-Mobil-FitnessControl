@@ -122,9 +122,9 @@ fun AppNavHost() {
 
             composable(Route.Profile.path) {
                 ProfileScreen(
-                    onEditprofile = {
-                        nav.navigate(Route.EditProfile.path)
-                    }
+//                    onEditprofile = {
+//                        nav.navigate(Route.EditProfile.path)
+//                    }
                 )
             }
 

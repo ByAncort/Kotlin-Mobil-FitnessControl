@@ -1,6 +1,6 @@
 package ui.register
 
-import Model.User
+import model.User
 import repository.Auth.AuthRepository
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
