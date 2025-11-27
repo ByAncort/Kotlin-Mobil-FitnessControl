@@ -1,7 +1,7 @@
 package repository
 
 import data.Exercise
-import data.Routine
+
 import service.ExerciseService
 
 class ExerciseRepository(private val exerciseService: ExerciseService) {

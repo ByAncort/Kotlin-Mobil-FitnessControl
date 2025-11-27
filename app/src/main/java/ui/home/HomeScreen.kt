@@ -24,28 +24,31 @@ fun HomeScreen(
     onExploreRoutines: () -> Unit,
     onMyRoutines: () -> Unit,
     onRoutineSelected: (String) -> Unit,
+    onContinueDraft: () -> Unit,
     vm: HomeViewModel = viewModel()
 ) {
     val state = vm.uiState.value
+    var selectedRoutine by remember { mutableStateOf<RoutineUiState?>(null) }
+    var showRoutineDetail by remember { mutableStateOf(false) }
 
-    // Animación de rebote INFINITO para el icono
-    val infiniteTransition = rememberInfiniteTransition(label = "infinite_bounce")
-    val bounceScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 800,
-                easing = FastOutSlowInEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "fast_bounce"
-    )
+    // Diálogo de detalle de rutina
+    if (showRoutineDetail && selectedRoutine != null) {
+        RoutineDetailDialog(
+            routine = selectedRoutine!!,
+            onDismiss = {
+                showRoutineDetail = false
+                selectedRoutine = null
+            },
+            onStartWorkout = {
+                onRoutineSelected(selectedRoutine!!.id)
+                showRoutineDetail = false
+                selectedRoutine = null
+            }
+        )
+    }
 
     MaterialTheme(colorScheme = lightColorScheme()) {
         Scaffold(
-
             containerColor = MaterialTheme.colorScheme.background
         ) { inner ->
             Box(
@@ -81,7 +84,6 @@ fun HomeScreen(
                                     onClick = onCreateRoutine,
                                     modifier = Modifier.weight(1f)
                                 )
-
                             }
 
                             ActionCard(
@@ -89,6 +91,15 @@ fun HomeScreen(
                                 icon = Icons.Default.Explore,
                                 onClick = onExploreRoutines,
                                 modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // NUEVA SECCIÓN: Rutina en borrador
+                        state.draftRoutine?.let { draft ->
+                            DraftRoutineSection(
+                                draft = draft,
+                                onContinueDraft = onContinueDraft,
+                                onDiscardDraft = { vm.clearDraftRoutine() }
                             )
                         }
 
@@ -127,7 +138,10 @@ fun HomeScreen(
                                     items(state.myRoutines.take(3)) { routine ->
                                         RoutineItem(
                                             routine = routine,
-                                            onClick = { onRoutineSelected(routine.id) }
+                                            onClick = {
+                                                selectedRoutine = routine
+                                                showRoutineDetail = true
+                                            }
                                         )
                                     }
                                 }
@@ -144,6 +158,123 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun RoutineDetailDialog(
+    routine: RoutineUiState,
+    onDismiss: () -> Unit,
+    onStartWorkout: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = routine.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Información básica
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    InfoItem(
+                        icon = Icons.Default.FitnessCenter,
+                        title = "Ejercicios",
+                        value = routine.exerciseCount.toString()
+                    )
+                    InfoItem(
+                        icon = Icons.Default.Schedule,
+                        title = "Duración",
+                        value = "${routine.duration} min"
+                    )
+                }
+
+                // Última vez completada
+                if (routine.lastCompleted != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = "Última vez",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Completada: ${routine.lastCompleted}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Nota informativa
+                Text(
+                    text = "Presiona 'Comenzar Entrenamiento' para iniciar esta rutina con seguimiento completo de ejercicios y tiempos.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cerrar")
+                }
+                Button(
+                    onClick = onStartWorkout,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Comenzar")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun InfoItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -230,11 +361,19 @@ fun RoutineItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (routine.lastCompleted != null) {
+                    Text(
+                        text = routine.lastCompleted,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
 
             Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Ver rutina",
+                imageVector = Icons.Default.Visibility,
+                contentDescription = "Ver detalles",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -283,12 +422,12 @@ fun TodayWorkoutSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = onStartWorkout,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Comenzar Entrenamiento")
-            }
+//            Button(
+//                onClick = onStartWorkout,
+//                modifier = Modifier.fillMaxWidth()
+//            ) {
+//                Text("Comenzar Entrenamiento")
+//            }
         }
     }
 }
@@ -327,6 +466,129 @@ fun EmptyRoutineCard(
 
             Button(onClick = onCreateRoutine) {
                 Text("Crear Primera Rutina")
+            }
+        }
+    }
+}
+
+@Composable
+fun DraftRoutineSection(
+    draft: DraftRoutineUiState,
+    onContinueDraft: () -> Unit,
+    onDiscardDraft: () -> Unit
+) {
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Descartar borrador") },
+            text = { Text("¿Estás seguro de que quieres descartar esta rutina en progreso?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDiscardDraft()
+                        showDiscardDialog = false
+                    }
+                ) {
+                    Text("Descartar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Borrador",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Continuar donde lo dejaste",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                    )
+
+                    Text(
+                        text = draft.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+
+                    Text(
+                        text = "${draft.exerciseCount} ejercicios • ${draft.lastModified}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+
+                // Botón de descartar
+                IconButton(
+                    onClick = { showDiscardDialog = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Descartar borrador",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showDiscardDialog = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Text("Descartar")
+                }
+
+                Button(
+                    onClick = onContinueDraft,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary
+                    )
+                ) {
+                    Text("Continuar")
+                }
             }
         }
     }

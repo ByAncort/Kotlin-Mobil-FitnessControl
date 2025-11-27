@@ -17,6 +17,8 @@ import com.example.fitnesscontrol.navigation.navBarItems
 import com.example.fitnesscontrol.setting.SettingsScreen
 import ui.CreateRoutine.CreateRoutineScreen
 import ui.CreateRoutine.CreateRoutineViewModel
+import ui.ExploreRoutines.ExploreRoutinesScreen
+import ui.ExploreRoutines.ExploreRoutinesViewModel
 import ui.home.HomeScreen
 import ui.home.HomeViewModel
 import ui.login.LoginScreen
@@ -28,7 +30,7 @@ import ui.register.RegisterScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavHost() {
-    val nav = rememberNavController()
+    val nav = rememberNavController() // ← Este es tu navController
     val navBackStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -70,7 +72,7 @@ fun AppNavHost() {
         }
     ) { paddingValues ->
         NavHost(
-            navController = nav,
+            navController = nav, // ← Aquí se usa "nav"
             startDestination = Route.Login.path,
             modifier = Modifier.padding(paddingValues)
         ) {
@@ -108,6 +110,9 @@ fun AppNavHost() {
                     onRoutineSelected = { routineId ->
                         nav.navigate("${Route.RoutineDetail.path}/$routineId")
                     },
+                    onContinueDraft = {
+                        nav.navigate(Route.CreateRoutine.path)
+                    },
                     vm = vm
                 )
             }
@@ -117,6 +122,14 @@ fun AppNavHost() {
                 CreateRoutineScreen(
                     vm = vm,
                     onBack = { nav.popBackStack() }
+                )
+            }
+
+            composable(Route.ExploreRoutines.path) {
+                val vm: ExploreRoutinesViewModel = viewModel()
+                ExploreRoutinesScreen(
+                    navController = nav,
+                    vm = vm
                 )
             }
 
@@ -137,6 +150,7 @@ fun AppNavHost() {
                     }
                 )
             }
+
             composable(Route.EditProfile.path) {
                 EditProfileScreen(
                     onBack = { nav.popBackStack() },

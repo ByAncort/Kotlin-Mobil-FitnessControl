@@ -1,16 +1,21 @@
 package ui.login
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import data.network.AuthPreferencesManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import ui.AppConfig
+import java.net.HttpURLConnection
 import java.net.URL
 
 @Serializable
@@ -23,28 +28,44 @@ data class LoginRequest(
 data class RoleResponse(
     val id: Int,
     val name: String,
-    val permissions: List<String>
+    val permissions: List<String> = emptyList()
 )
+
 
 @Serializable
 data class LoginResponse(
     val token: String,
+    @SerialName("tokenType")
     val tokenType: String,
+    @SerialName("issuedAt")
     val issuedAt: String,
+    @SerialName("expiresAt")
     val expiresAt: String,
     val username: String,
     val roles: List<RoleResponse>,
-    val message: String?,
-    val _links: Map<String, Map<String, String>>
+    val message: String? = null,
+    @SerialName("_links")
+    val links: Links? = null
 )
-
-class LoginViewModel : ViewModel() {
+@Serializable
+data class Links(
+    val self: Link,
+    @SerialName("validate-token")
+    val validateToken: Link
+)
+@Serializable
+data class Link(
+    val href: String
+)
+class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LoginState())
     val ui = _uiState.asStateFlow()
 
-    // Configuración de la API
-    private val baseUrl = "http://192.168.100.22:9020/"
+    private val baseUrl = AppConfig.getBaseUrl()+":9020"
+    private val authDataStoreManager: AuthPreferencesManager = AuthPreferencesManager(application)
+
+
 
     fun onUsernameChange(username: String) {
         _uiState.update { currentState ->
@@ -78,6 +99,7 @@ class LoginViewModel : ViewModel() {
             return
         }
 
+
         // Realizar login con la API
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
@@ -86,9 +108,6 @@ class LoginViewModel : ViewModel() {
                 val loginResult = performLogin(currentState.username, currentState.password)
 
                 if (loginResult != null) {
-                    // Guardar el token (aquí puedes usar SharedPreferences, SecureStorage, etc.)
-                    saveAuthToken(loginResult.token)
-
                     _uiState.update {
                         it.copy(
                             loading = false,
@@ -116,45 +135,67 @@ class LoginViewModel : ViewModel() {
     }
 
     private suspend fun performLogin(username: String, password: String): LoginResponse? {
-        return try {
-            val url = "$baseUrl/api/auth/login"
-            val request = LoginRequest(username, password)
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "$baseUrl/api/auth/login"
+                val request = LoginRequest(username, password)
 
-            // Usar ktor-client o HttpURLConnection para hacer la petición
-            // Aquí un ejemplo básico con HttpURLConnection
-            val connection = URL(url).openConnection() as java.net.HttpURLConnection
-            connection.apply {
-                requestMethod = "POST"
-                setRequestProperty("accept", "*/*")
-                setRequestProperty("Content-Type", "application/json")
-                doOutput = true
-            }
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("accept", "*/*")
+                    setRequestProperty("Content-Type", "application/json")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
 
-            // Convertir el request a JSON
-            val jsonInput = Json.encodeToString(LoginRequest.serializer(), request)
-            connection.outputStream.use { os ->
-                os.write(jsonInput.toByteArray())
-                os.flush()
-            }
+                val jsonInput = Json.encodeToString(LoginRequest.serializer(), request)
+                connection.outputStream.use { os ->
+                    os.write(jsonInput.toByteArray())
+                    os.flush()
+                }
 
-            val responseCode = connection.responseCode
-            if (responseCode == 200) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                Json.decodeFromString<LoginResponse>(responseText)
-            } else {
-                val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() }
-                throw Exception("Error $responseCode: $errorText")
+                val responseCode = connection.responseCode
+                if (responseCode == 200) {
+                    val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                    val loginResponse = Json.decodeFromString<LoginResponse>(responseText)
+                    saveAuthData(loginResponse)
+                    loginResponse
+                } else {
+                    val errorText = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                    throw Exception("Error $responseCode: $errorText")
+                }
+            } catch (e: Exception) {
+                throw e
             }
-        } catch (e: Exception) {
-            throw e
         }
     }
 
-    private fun saveAuthToken(token: String) {
-        // Aquí guardas el token en SharedPreferences, SecureStorage, etc.
-        // Ejemplo básico:
-        // sharedPreferences.edit().putString("auth_token", token).apply()
-        println("Token guardado: $token")
+    private suspend fun saveAuthData(loginResponse: LoginResponse) {
+        authDataStoreManager.saveAuthData(loginResponse)
+    }
+    fun checkLoginStatus() {
+        viewModelScope.launch {
+            val token = authDataStoreManager.authToken.first()
+            if (!token.isNullOrEmpty()) {
+                _uiState.update { it.copy(loggedIn = true) }
+            }
+        }
+    }
+    fun logout() {
+        viewModelScope.launch {
+                authDataStoreManager.clearAuthData()
+                _uiState.update {
+                    it.copy(
+                        loggedIn = false,
+                        username = "",
+                        password = "",
+                        message = "Sesión cerrada"
+                    )
+                }
+
+        }
     }
 
     fun messageConsumed() {

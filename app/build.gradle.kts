@@ -12,7 +12,14 @@ android {
     compileSdk {
         version = release(36)
     }
-
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.useJUnitPlatform()
+            }
+        }
+    }
     defaultConfig {
         applicationId = "com.example.fitnesscontrol"
         minSdk = 24
@@ -21,6 +28,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
     }
 
     buildTypes {
@@ -56,6 +64,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.androidx.room.common.jvm)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -76,10 +85,11 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:2.3.5")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.5")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-    // Retrofit para peticiones HTTP
+
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
@@ -92,4 +102,39 @@ dependencies {
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("com.google.code.gson:gson:2.13.2")
+
+    implementation("io.ktor:ktor-client-core:2.3.8")
+    implementation("io.ktor:ktor-client-cio:2.3.8")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
+    implementation("io.ktor:ktor-client-auth:2.3.8")
+    implementation("io.ktor:ktor-client-logging:2.3.8")
+
+    // ========== DEPENDENCIAS DE TESTING ==========
+
+    // Framework de testing
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+
+    // Corrutinas testing - VERSIÓN COMPATIBLE
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // Mocking
+    testImplementation("io.mockk:mockk:1.13.8")
+
+    // Testing de Flows
+    testImplementation("app.cash.turbine:turbine:1.0.0")
+
+    // AndroidX Testing
+    testImplementation("androidx.test:core:1.5.0")
+    testImplementation("androidx.test:runner:1.5.2")
+    testImplementation("androidx.test.ext:junit:1.1.5")
+
+    // Para ViewModel testing
+    testImplementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    testImplementation("androidx.lifecycle:lifecycle-runtime-testing:2.7.0")
+
+    // Truth (assertions más legibles)
+    testImplementation("com.google.truth:truth:1.1.5")
+
 }

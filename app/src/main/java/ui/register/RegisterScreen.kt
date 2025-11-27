@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -26,13 +27,17 @@ fun RegisterScreen(
     onRegistered: () -> Unit,
     vm: RegisterViewModel = viewModel()
 ) {
-    val state by vm.ui.collectAsState()
+    val state by vm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Navegar automáticamente cuando el registro sea exitoso
     LaunchedEffect(state.registered) {
-        if (state.registered) onRegistered()
+        if (state.registered) {
+            onRegistered()
+        }
     }
 
+    // Mostrar mensajes en snackbar
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbarHostState.showSnackbar(it)
@@ -64,6 +69,31 @@ fun RegisterScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
+                    // Campo de nombre de usuario
+                    OutlinedTextField(
+                        value = state.username,
+                        onValueChange = vm::onUsernameChange,
+                        label = { Text("Nombre de usuario") },
+                        placeholder = { Text("Tu nombre de usuario") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Next
+                        ),
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = "Icono de usuario")
+                        },
+                        isError = state.username.isNotEmpty() && state.username.isBlank(),
+                        supportingText = {
+                            if (state.username.isNotEmpty() && state.username.isBlank()) {
+                                Text("El nombre de usuario es requerido", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    // Campo de email
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = vm::onEmailChange,
@@ -90,9 +120,11 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
+                    // Campos de contraseña con visibilidad
                     var passwordVisible by remember { mutableStateOf(false) }
-                    var confirmVisible by remember { mutableStateOf(false) }
+                    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
+                    // Contraseña
                     OutlinedTextField(
                         value = state.password,
                         onValueChange = vm::onPasswordChange,
@@ -124,10 +156,10 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
-
+                    // Confirmar contraseña
                     OutlinedTextField(
-                        value = state.confirm,
-                        onValueChange = vm::onConfirmChange,
+                        value = state.confirmPassword,
+                        onValueChange = vm::onConfirmPasswordChange,
                         label = { Text("Confirmar contraseña") },
                         placeholder = { Text("••••••••") },
                         singleLine = true,
@@ -140,20 +172,20 @@ fun RegisterScreen(
                             Icon(Icons.Default.Lock, contentDescription = "Icono de confirmación")
                         },
                         trailingIcon = {
-                            val icon = if (confirmVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                            val desc = if (confirmVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                            IconButton(onClick = { confirmVisible = !confirmVisible }) {
+                            val icon = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                            val desc = if (confirmPasswordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                                 Icon(icon, contentDescription = desc)
                             }
                         },
-                        visualTransformation = if (confirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        isError = state.confirm.isNotEmpty() &&
+                        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        isError = state.confirmPassword.isNotEmpty() &&
                                 state.password.isNotEmpty() &&
-                                state.confirm != state.password,
+                                state.confirmPassword != state.password,
                         supportingText = {
-                            if (state.confirm.isNotEmpty() &&
+                            if (state.confirmPassword.isNotEmpty() &&
                                 state.password.isNotEmpty() &&
-                                state.confirm != state.password
+                                state.confirmPassword != state.password
                             ) {
                                 Text("Las contraseñas no coinciden", color = MaterialTheme.colorScheme.error)
                             }
@@ -161,11 +193,16 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
-
+                    // Mostrar errores
                     if (state.error != null) {
-                        Text(state.error!!, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            state.error!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
 
+                    // Botón de registro
                     Button(
                         onClick = vm::submit,
                         enabled = !state.loading,
@@ -176,11 +213,13 @@ fun RegisterScreen(
                         Text(if (state.loading) "Creando cuenta..." else "Crear cuenta")
                     }
 
+                    // Enlace para volver al login
                     TextButton(onClick = onBack) {
                         Text("Ya tengo una cuenta", color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
+                // Mostrar loading
                 if (state.loading) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
